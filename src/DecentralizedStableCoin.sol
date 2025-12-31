@@ -5,8 +5,8 @@ import {ERC20Burnable,ERC20} from "@openzeppelin/contracts/token/ERC20/extension
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * title: DecentralizedStableCoin
- * author: Ebin Yesudas.
+ * @title DecentralizedStableCoin
+ * @author Ebin Yesudas.
  * Collateral: Exogenous (ETH & BTC)
  * Minting: Algorithmic
  * Relative Stability: Pegged to USD
