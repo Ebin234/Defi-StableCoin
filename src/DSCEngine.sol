@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 import {DecentralizedStableCoin} from "./DecentralizedStableCoin.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title DSCEngine
@@ -34,6 +34,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__AmountMustBeMoreThanZero();
     error DSCEngine__TokenAddressesArrayAndPriceFeedAddressesArrayMustBeSameLength();
     error DSCEngine__TokenNotAllowed(address token);
+    error DSCEngine__TransferFailed();
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
@@ -41,8 +42,18 @@ contract DSCEngine is ReentrancyGuard {
     DecentralizedStableCoin private immutable i_dsc;
 
     mapping(address tokenAddress => address priceFeed) private s_priceFeeds;
-    mapping(address users => mapping (address token => uint256 amount))private s_collateralDeposited;
-    
+    mapping(address users => mapping(address token => uint256 amount))
+        private s_collateralDeposited;
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    event CollateralDeposited(
+        address indexed user,
+        address indexed token,
+        uint256 indexed amount
+    );
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -56,7 +67,7 @@ contract DSCEngine is ReentrancyGuard {
     }
 
     modifier isAllowedToken(address token) {
-        if(s_priceFeeds[token] == address(0)){
+        if (s_priceFeeds[token] == address(0)) {
             revert DSCEngine__TokenNotAllowed(token);
         }
         _;
@@ -101,7 +112,26 @@ contract DSCEngine is ReentrancyGuard {
         amountMoreThanZero(collateralAmount)
         isAllowedToken(tokenCollateralAddress)
         nonReentrant
-    {}
+    {
+        s_collateralDeposited[msg.sender][
+            tokenCollateralAddress
+        ] += collateralAmount;
+
+        emit CollateralDeposited(
+            msg.sender,
+            tokenCollateralAddress,
+            collateralAmount
+        );
+
+        bool success = IERC20(tokenCollateralAddress).transferFrom(
+            msg.sender,
+            address(this),
+            collateralAmount
+        );
+        if(!success){
+            revert DSCEngine__TransferFailed();
+        }
+    }
 
     function redeemCollateralForDSC() external {}
 
