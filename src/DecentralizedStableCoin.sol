@@ -18,8 +18,8 @@ contract DecentralizedStableCoin is ERC20Burnable,Ownable{
 /*//////////////////////////////////////////////////////////////
                             ERRORS
 //////////////////////////////////////////////////////////////*/
-    error DecentralizedStableCoin__BurnAmountMustBeMoreThanZero();
-    error DecentralizedStableCoin__BurnAmountExceedsUserBalance();
+    error DecentralizedStableCoin__AmountMustBeMoreThanZero();
+    error DecentralizedStableCoin__AmountExceedsUserBalance();
     error DecentralizedStableCoin__NotZeroAddress();
 
 /*//////////////////////////////////////////////////////////////
@@ -31,10 +31,10 @@ contract DecentralizedStableCoin is ERC20Burnable,Ownable{
     function burn(uint256 _amount) public override onlyOwner{
         uint256 userBalance = balanceOf(msg.sender);
         if(_amount <= 0){
-            revert DecentralizedStableCoin__BurnAmountMustBeMoreThanZero();
+            revert DecentralizedStableCoin__AmountMustBeMoreThanZero();
         }
         if(userBalance < _amount){
-            revert DecentralizedStableCoin__BurnAmountExceedsUserBalance();
+            revert DecentralizedStableCoin__AmountExceedsUserBalance();
         }
 
         super.burn(_amount);
@@ -45,7 +45,7 @@ contract DecentralizedStableCoin is ERC20Burnable,Ownable{
             revert DecentralizedStableCoin__NotZeroAddress();
         }
         if(_amount <= 0){
-            revert DecentralizedStableCoin__BurnAmountMustBeMoreThanZero();
+            revert DecentralizedStableCoin__AmountMustBeMoreThanZero();
         }
 
         _mint(_to,_amount);
