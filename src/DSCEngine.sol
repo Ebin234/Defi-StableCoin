@@ -100,7 +100,21 @@ contract DSCEngine is ReentrancyGuard {
                         EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function depositCollateralAndMintDSC() external {}
+    /**
+     * 
+     * @param tokenCollateralAddress: The address of the token to deposit as collateral.
+     * @param collateralAmount: The amount of collateral to deposit. 
+     * @param amountDscToMint: The amount of DecentralizedStableCoin to mint.
+     * @notice This function will deposit your collateral and mint DSC in one transaction.
+     */
+    function depositCollateralAndMintDSC(
+        address tokenCollateralAddress,
+        uint256 collateralAmount,
+        uint256 amountDscToMint
+    ) external {
+        depositCollateral(tokenCollateralAddress,collateralAmount);
+        mintDsc(amountDscToMint);
+    }
 
     /**
      *
@@ -108,7 +122,7 @@ contract DSCEngine is ReentrancyGuard {
      * @param collateralAmount: The amount of collateral you are depositing.
      */
     function depositCollateral(address tokenCollateralAddress, uint256 collateralAmount)
-        external
+        public
         amountMoreThanZero(collateralAmount)
         isAllowedToken(tokenCollateralAddress)
         nonReentrant
@@ -139,9 +153,9 @@ contract DSCEngine is ReentrancyGuard {
     function mintDsc(uint256 amountDscToMint) public amountMoreThanZero(amountDscToMint) nonReentrant {
         s_DSCMinted[msg.sender] += amountDscToMint;
         _revertIfHealthFactorIsBroken(msg.sender);
-        bool minted = i_dsc.mint(msg.sender,amountDscToMint);
+        bool minted = i_dsc.mint(msg.sender, amountDscToMint);
 
-        if(!minted){
+        if (!minted) {
             revert DSCEngine__MintFailed();
         }
     }
@@ -177,7 +191,7 @@ contract DSCEngine is ReentrancyGuard {
 
     function _revertIfHealthFactorIsBroken(address user) internal view {
         uint256 userHealthFactor = _healthFactor(user);
-        if(userHealthFactor<MIN_HEALTH_FACTOR){
+        if (userHealthFactor < MIN_HEALTH_FACTOR) {
             revert DSCEngine__BreaksHelthFactor(userHealthFactor);
         }
     }
@@ -191,7 +205,7 @@ contract DSCEngine is ReentrancyGuard {
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformations(user);
         uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
-        return (collateralAdjustedForThreshold * PRECISION)/totalDscMinted;
+        return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
     }
 
     function _getAccountInformations(address user)
