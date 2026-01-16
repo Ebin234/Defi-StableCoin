@@ -60,7 +60,7 @@ contract DSCEngine is ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
-    event collateralRedeemed(address indexed user,address indexed token, uint256 indexed amount);
+    event collateralRedeemed(address indexed user, address indexed token, uint256 indexed amount);
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -138,7 +138,19 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function redeemCollateralForDSC() external {}
+    /**
+     *
+     * @param burnAmount: Amount of Dsc to burn.
+     * @param tokenCollateralAddress: The collateral address to redeem.
+     * @param collateralAmount: Amount of collateral to redeem.
+     * @notice This function burns DSC and redeem underlying collateral in one transaction.
+     */
+    function redeemCollateralForDSC(uint256 burnAmount, address tokenCollateralAddress, uint256 collateralAmount)
+        external
+    {
+        burnDsc(burnAmount);
+        redeemCollateral(tokenCollateralAddress, collateralAmount);
+    }
 
     function redeemCollateral(address tokenCollateralAddress, uint256 collateralAmount)
         public
@@ -146,10 +158,10 @@ contract DSCEngine is ReentrancyGuard {
         nonReentrant
     {
         s_collateralDeposited[msg.sender][tokenCollateralAddress] -= collateralAmount;
-        emit collateralRedeemed(msg.sender,tokenCollateralAddress,collateralAmount);
+        emit collateralRedeemed(msg.sender, tokenCollateralAddress, collateralAmount);
 
-        bool success = IERC20(tokenCollateralAddress).transfer(msg.sender,collateralAmount);
-        if(!success){
+        bool success = IERC20(tokenCollateralAddress).transfer(msg.sender, collateralAmount);
+        if (!success) {
             revert DSCEngine__TransferFailed();
         }
 
@@ -175,7 +187,18 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function burnDsc() external {}
+    /**
+     *
+     * @param burnAmount: The amount of Dsc you want to burn.
+     */
+    function burnDsc(uint256 burnAmount) public amountMoreThanZero(burnAmount) {
+        s_DSCMinted[msg.sender] -= burnAmount;
+        bool success = i_dsc.transferFrom(msg.sender, address(this), burnAmount);
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+        i_dsc.burn(burnAmount);
+    }
 
     function liquidate() external {}
 
