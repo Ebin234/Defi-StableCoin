@@ -60,6 +60,7 @@ contract DSCEngine is ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
+    event collateralRedeemed(address indexed user,address indexed token, uint256 indexed amount);
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -101,9 +102,9 @@ contract DSCEngine is ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * 
+     *
      * @param tokenCollateralAddress: The address of the token to deposit as collateral.
-     * @param collateralAmount: The amount of collateral to deposit. 
+     * @param collateralAmount: The amount of collateral to deposit.
      * @param amountDscToMint: The amount of DecentralizedStableCoin to mint.
      * @notice This function will deposit your collateral and mint DSC in one transaction.
      */
@@ -112,7 +113,7 @@ contract DSCEngine is ReentrancyGuard {
         uint256 collateralAmount,
         uint256 amountDscToMint
     ) external {
-        depositCollateral(tokenCollateralAddress,collateralAmount);
+        depositCollateral(tokenCollateralAddress, collateralAmount);
         mintDsc(amountDscToMint);
     }
 
@@ -139,7 +140,21 @@ contract DSCEngine is ReentrancyGuard {
 
     function redeemCollateralForDSC() external {}
 
-    function redeemCollateral() external {}
+    function redeemCollateral(address tokenCollateralAddress, uint256 collateralAmount)
+        public
+        amountMoreThanZero(collateralAmount)
+        nonReentrant
+    {
+        s_collateralDeposited[msg.sender][tokenCollateralAddress] -= collateralAmount;
+        emit collateralRedeemed(msg.sender,tokenCollateralAddress,collateralAmount);
+
+        bool success = IERC20(tokenCollateralAddress).transfer(msg.sender,collateralAmount);
+        if(!success){
+            revert DSCEngine__TransferFailed();
+        }
+
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     /*//////////////////////////////////////////////////////////////
                         PUBLIC FUNCTIONS
