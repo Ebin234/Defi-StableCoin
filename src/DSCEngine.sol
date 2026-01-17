@@ -38,6 +38,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__TransferFailed();
     error DSCEngine__BreaksHelthFactor(uint256 healthFactor);
     error DSCEngine__MintFailed();
+    error DSCEngine__HealthFactorOk();
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
@@ -48,6 +49,7 @@ contract DSCEngine is ReentrancyGuard {
     uint256 private constant LIQUIDATION_THRESHOLD = 50;
     uint256 private constant LIQUIDATION_PRECISION = 100;
     uint256 private constant MIN_HEALTH_FACTOR = 1e18;
+    uint256 private constant LIQUIDATION_BONUS = 10;
 
     mapping(address tokenAddress => address priceFeed) private s_priceFeeds;
     mapping(address users => mapping(address token => uint256 amount)) private s_collateralDeposited;
@@ -200,13 +202,52 @@ contract DSCEngine is ReentrancyGuard {
         i_dsc.burn(burnAmount);
     }
 
-    function liquidate() external {}
+    /**
+     *
+     * @param user : The user who is insolvent. They have to have a _healthFactor below MIN_HEALTH_FACTOR.
+     * @param tokenCollateralAddress : The ERC20 token address of the collateral.
+     * This is the collateral that you are going to take from the user who is insolvent.
+     * In return you have to burn your DSC to pay off their debt. But you don't pay off your own.
+     * @param debtToCover : The amount of DSC you want to burn to cover the user's debt.
+     *
+     * @notice You can partially liquidate a user.
+     * @notice You will get a 10% LIQUIDATION_BONUS for taking the users funds.
+     * @notice This function working assumes that the protocol will be roughly 150% overcollateralized in order for this to work.
+     * @notice A known bug would be if the protocol was only 100% overcollateralized, we wouldn't be able to liquidate anyone.
+     *
+     * For example, if the price of the collateral plummeted before anyone could be liquidated.
+     */
+    function liquidate(address user, address tokenCollateralAddress, uint256 debtToCover)
+        external
+        amountMoreThanZero(debtToCover)
+        nonReentrant
+    {
+        uint256 startingUserHealthFactor = _healthFactor(user);
+        if (startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
+            revert DSCEngine__HealthFactorOk();
+        }
 
-    function getHealthFactor() external {}
+        uint256 tokenAmountFromDebtCovered = getTokenAmountFromUsd(tokenCollateralAddress, debtToCover);
+        uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
+
+        uint256 totalCollateralRedeemed = tokenAmountFromDebtCovered + bonusCollateral;
+    }
+
+    function getHealthFactor() external view {}
 
     /*//////////////////////////////////////////////////////////////
                     PUBLIC & EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function getTokenAmountFromUsd(address tokenCollateralAddress, uint256 usdAmountInWei)
+        public
+        view
+        returns (uint256)
+    {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[tokenCollateralAddress]);
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        return (usdAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
+    }
 
     function getAccountCollateralValue(address user) public view returns (uint256 collateralValueInUsd) {
         for (uint256 i = 0; i < s_collateralTokens.length; i++) {
