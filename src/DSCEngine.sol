@@ -62,7 +62,9 @@ contract DSCEngine is ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
-    event collateralRedeemed(address indexed user, address indexed token, uint256 indexed amount);
+    event CollateralRedeemed(
+        address indexed redeemedFrom, address indexed reddemedTo, address indexed token, uint256 amount
+    );
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -160,7 +162,7 @@ contract DSCEngine is ReentrancyGuard {
         nonReentrant
     {
         s_collateralDeposited[msg.sender][tokenCollateralAddress] -= collateralAmount;
-        emit collateralRedeemed(msg.sender, tokenCollateralAddress, collateralAmount);
+        // emit CollateralRedeemed(msg.sender, tokenCollateralAddress, collateralAmount);
 
         bool success = IERC20(tokenCollateralAddress).transfer(msg.sender, collateralAmount);
         if (!success) {
@@ -267,6 +269,18 @@ contract DSCEngine is ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                     PRIVATE & INTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _redeemCollateral(address tokenCollateralAddress, uint256 collateralAmount, address from, address to)
+        private
+    {
+        s_collateralDeposited[from][tokenCollateralAddress] -= collateralAmount;
+        emit CollateralRedeemed(from, to, tokenCollateralAddress, collateralAmount);
+
+        bool success = IERC20(tokenCollateralAddress).transfer(to, collateralAmount);
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+    }
 
     function _revertIfHealthFactorIsBroken(address user) internal view {
         uint256 userHealthFactor = _healthFactor(user);
