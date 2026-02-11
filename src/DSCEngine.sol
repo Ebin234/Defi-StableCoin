@@ -315,6 +315,9 @@ contract DSCEngine is ReentrancyGuard {
      */
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+
+        if (totalDscMinted == 0) return type(uint256).max;
+
         uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
         return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
     }
@@ -346,39 +349,47 @@ contract DSCEngine is ReentrancyGuard {
         return PRECISION;
     }
 
-    function getAdditionalFeedPrecision() external pure returns(uint256){
+    function getAdditionalFeedPrecision() external pure returns (uint256) {
         return ADDITIONAL_FEED_PRECISION;
     }
 
-    function getLiquidationThreshold() external pure returns(uint256){
+    function getLiquidationThreshold() external pure returns (uint256) {
         return LIQUIDATION_THRESHOLD;
     }
 
-    function getLiquidationPrecision() external pure returns(uint256){
+    function getLiquidationPrecision() external pure returns (uint256) {
         return LIQUIDATION_PRECISION;
     }
 
-    function getLiquidationBonus() external pure returns(uint256){
+    function getLiquidationBonus() external pure returns (uint256) {
         return LIQUIDATION_BONUS;
     }
 
-    function getMinimumHealthFactor() external pure returns(uint256){
+    function getMinimumHealthFactor() external pure returns (uint256) {
         return MIN_HEALTH_FACTOR;
     }
 
-    function getCollateralTokens() external view returns(address[] memory){
+    function getCollateralTokens() external view returns (address[] memory) {
         return s_collateralTokens;
     }
 
-    function getDsc() external view returns(address){
+    function getUserDepositedCollateralAmount(address user, address tokenAddress) external view returns (uint256) {
+        return s_collateralDeposited[user][tokenAddress];
+    }
+
+    function getDsc() external view returns (address) {
         return address(i_dsc);
     }
 
-    function getCollateralTokenPriceFeed(address token) external view returns(address){
+    function getCollateralTokenPriceFeed(address token) external view returns (address) {
         return s_priceFeeds[token];
     }
 
-    function getHealthFactor(address user)external view  returns (uint256) {
+    function getHealthFactor(address user) external view returns (uint256) {
         return _healthFactor(user);
+    }
+
+    function getCollateralBalanceOfUser(address collateralAddress, address user) external view returns (uint256) {
+        return s_collateralDeposited[user][collateralAddress];
     }
 }

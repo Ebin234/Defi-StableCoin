@@ -48,7 +48,7 @@ contract DSCEngineTest is Test {
                                 PRICE TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testGetUsdValue() public {
+    function testGetUsdValue() public view {
         // 15e18*1000/ETH = 15000e18
 
         uint256 ethAmount = 15e18;
@@ -57,7 +57,7 @@ contract DSCEngineTest is Test {
         assertEq(expectedUsd, actualUsd);
     }
 
-    function testGetTokenAmountFronUsd() public {
+    function testGetTokenAmountFronUsd() public view {
         uint256 usdAmount = 100 ether;
         // 100/1000 = 0.1;
         uint256 expectedWeth = 0.1 ether;
@@ -86,6 +86,18 @@ contract DSCEngineTest is Test {
         vm.stopPrank();
     }
 
+    function testDepositCanAddCollateralAMountToState() public {
+        uint256 startingUserCollateralInContract = dsce.getUserDepositedCollateralAmount(USER, weth);
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+
+        uint256 endingUserCollateralInContract = dsce.getUserDepositedCollateralAmount(USER, weth);
+
+        assertEq(endingUserCollateralInContract, startingUserCollateralInContract + AMOUNT_COLLATERAL);
+    }
+
     modifier depositCollateral() {
         vm.startPrank(USER);
         ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
@@ -98,8 +110,8 @@ contract DSCEngineTest is Test {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = dsce.getAccountInformation(USER);
 
         uint256 expectedTotalDscMinted = 0;
-        uint256 expectedDepositedValueInUsd = dsce.getTokenAmountFromUsd(weth,collateralValueInUsd);
-        assertEq(totalDscMinted,expectedTotalDscMinted);
-        assertEq(AMOUNT_COLLATERAL,expectedDepositedValueInUsd);
+        uint256 expectedDepositedValueInUsd = dsce.getTokenAmountFromUsd(weth, collateralValueInUsd);
+        assertEq(totalDscMinted, expectedTotalDscMinted);
+        assertEq(AMOUNT_COLLATERAL, expectedDepositedValueInUsd);
     }
 }
