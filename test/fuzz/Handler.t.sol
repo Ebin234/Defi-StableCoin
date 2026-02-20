@@ -5,9 +5,14 @@ import {Test} from "forge-std/Test.sol";
 import {DecentralizedStableCoin} from "src/DecentralizedStableCoin.sol";
 import {DSCEngine} from "src/DSCEngine.sol";
 import {ERC20Mock} from "../mocks/ERC20Mock.sol";
+// import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 
 contract Handler is Test {
+    // MockV3Aggregator public ethUsdPriceFeed;
     uint256 MAX_DEPOSIT_SIZE = type(uint96).max;
+
+    uint256 public timesMintIsCalled;
+    address[] public usersWithCollateralDeposited;
 
     DecentralizedStableCoin dsc;
     DSCEngine dsce;
@@ -21,7 +26,14 @@ contract Handler is Test {
         address[] memory collateralTokens = dsce.getCollateralTokens();
         weth = ERC20Mock(collateralTokens[0]);
         wbtc = ERC20Mock(collateralTokens[1]);
+
+        // ethUsdPriceFeed = MockV3Aggregator(dsce.getCollateralTokenPriceFeed(address(weth)));
     }
+
+    // function updateCollateralprice(uint96 newPrice) public{
+    //     int256 newPriceInt = int256(uint256(newPrice));
+    //     ethUsdPriceFeed.updateAnswer(newPriceInt);
+    // }
 
     function depositCollateral(uint256 collateralSeed, uint256 collateralAmount) public {
         ERC20Mock collateralAddress = _getCollateralAddressFromSeed(collateralSeed);
@@ -33,13 +45,15 @@ contract Handler is Test {
         collateralAddress.approve(address(dsce), collateralAmount);
         dsce.depositCollateral(address(collateralAddress), collateralAmount);
         vm.stopPrank();
+
+        usersWithCollateralDeposited.push(msg.sender);
     }
 
     function redeemCollateral(uint256 collateralSeed, uint256 collateralAmount) public {
         ERC20Mock collateralAddress = _getCollateralAddressFromSeed(collateralSeed);
         uint256 maxCollateralToRedeem = dsce.getCollateralBalanceOfUser(address(collateralAddress), msg.sender);
         collateralAmount = bound(collateralAmount, 0, maxCollateralToRedeem);
-        if (collateralAmount == 0) {
+        if (collateralAmount == 0 ) {
             return;
         }
         vm.startPrank(msg.sender);
@@ -47,8 +61,13 @@ contract Handler is Test {
         vm.stopPrank();
     }
 
-    function mintDsc(uint256 amount) public {
-        (uint256 totalDscMinted, uint256 collateralValueInUsd) = dsce.getAccountInformation(msg.sender);
+    function mintDsc(uint256 amount, uint256 addressSeed) public {
+        if (usersWithCollateralDeposited.length == 0) {
+            return;
+        }
+
+        address sender = usersWithCollateralDeposited[addressSeed % usersWithCollateralDeposited.length];
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = dsce.getAccountInformation(sender);
         uint256 maxDscToMint = (collateralValueInUsd / 2) - totalDscMinted;
 
         if (maxDscToMint < 0) {
@@ -60,9 +79,11 @@ contract Handler is Test {
             return;
         }
 
-        vm.startPrank(msg.sender);
+        vm.startPrank(sender);
         dsce.mintDsc(amount);
         vm.stopPrank();
+
+        timesMintIsCalled++;
     }
     /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
